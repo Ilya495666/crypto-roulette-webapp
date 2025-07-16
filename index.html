@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Roulette</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #1a1a2e;
+            color: white;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .wheel-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin: 30px auto;
+        }
+
+        .wheel {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+            transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+            transform: rotate(0deg);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .spin-btn {
+            background: linear-gradient(135deg, #0088cc, #00cc88);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 25px;
+            cursor: pointer;
+            margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(0, 136, 204, 0.3);
+            transition: all 0.3s;
+        }
+
+        .spin-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 136, 204, 0.4);
+        }
+
+        .result {
+            margin-top: 20px;
+            font-size: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>🎰 Crypto Roulette</h1>
+    <p>Каждый спин стоит <b>0.6 TON</b></p>
+
+    <div class="wheel-container">
+        <div class="wheel" id="wheel"></div>
+    </div>
+
+    <button class="spin-btn" id="spinBtn">Крутить рулетку</button>
+    <div class="result" id="result"></div>
+
+    <script>
+        // Конфигурация призов
+        const prizes = {
+            "BTC": { color: "#F7931A", value: 0.000004 },
+            "TON": { color: "#0088CC", value: 0.233 },
+            "ETH": { color: "#627EEA", value: 0.000212 },
+            "USDT": { color: "#26A17B", value: 1.2 },
+            "DOGE": { color: "#CBAE5B", value: 3.02 }
+        };
+
+        const wheel = document.getElementById('wheel');
+        const spinBtn = document.getElementById('spinBtn');
+        const resultDiv = document.getElementById('result');
+
+        // Инициализация рулетки
+        function initWheel() {
+            const cryptoList = Object.keys(prizes);
+            const sectorAngle = 360 / cryptoList.length;
+
+            cryptoList.forEach((crypto, index) => {
+                const sector = document.createElement('div');
+                sector.style.position = 'absolute';
+                sector.style.width = '100%';
+                sector.style.height = '100%';
+                sector.style.backgroundColor = prizes[crypto].color;
+                sector.style.clipPath = `polygon(50% 50%, ${calcPoint(index, sectorAngle, 50)}% ${calcPoint(index, sectorAngle, 50, false)}%, ${calcPoint(index + 1, sectorAngle, 50)}% ${calcPoint(index + 1, sectorAngle, 50, false)}%)`;
+
+                const label = document.createElement('div');
+                label.textContent = crypto;
+                label.style.position = 'absolute';
+                label.style.left = '50%';
+                label.style.top = '50%';
+                label.style.transformOrigin = '0 0';
+                label.style.transform = `rotate(${index * sectorAngle + sectorAngle/2}deg) translateX(120px) rotate(${-(index * sectorAngle + sectorAngle/2)}deg)`;
+
+                sector.appendChild(label);
+                wheel.appendChild(sector);
+            });
+        }
+
+        function calcPoint(index, angle, radius, isX = true) {
+            const rad = (index * angle - 90) * Math.PI / 180;
+            return 50 + (isX ? Math.cos(rad) : Math.sin(rad)) * radius;
+        }
+
+        // Обработчик кнопки
+        spinBtn.addEventListener('click', () => {
+            spinBtn.disabled = true;
+            const spinDegrees = 1800 + Math.floor(Math.random() * 360);
+            wheel.style.transform = `rotate(${-spinDegrees}deg)`;
+
+            setTimeout(() => {
+                const cryptoList = Object.keys(prizes);
+                const sectorAngle = 360 / cryptoList.length;
+                const winningIndex = Math.floor((spinDegrees % 360) / sectorAngle);
+                const winningCrypto = cryptoList[winningIndex];
+
+                resultDiv.innerHTML = `
+                    <h2>🎉 Поздравляем!</h2>
+                    <p>Вы выиграли: <b>${prizes[winningCrypto].value} ${winningCrypto}</b></p>
+                `;
+
+                spinBtn.disabled = false;
+
+                // Отправка результата в бота
+                if (Telegram.WebApp.sendData) {
+                    Telegram.WebApp.sendData(JSON.stringify({
+                        currency: winningCrypto,
+                        amount: prizes[winningCrypto].value
+                    }));
+                }
+            }, 4000);
+        });
+
+        // Инициализация при загрузке
+        Telegram.WebApp.ready();
+        Telegram.WebApp.expand();
+        initWheel();
+    </script>
+</body>
+</html>
